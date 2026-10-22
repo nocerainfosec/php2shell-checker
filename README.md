@@ -5,7 +5,7 @@
 
 By **NoceraInfoSec®** · [nocerainfosec.com.br](https://nocerainfosec.com.br) · [github.com/nocerainfosec](https://github.com/nocerainfosec) · MIT license
 
-![Popup showing a PHP 8.3.35 site analysed by the extension](docs/screenshot-en.png)
+![PHP2Shell Version Checker: verdict, server setup and evidence for a PHP site](docs/screenshot-1-verdict.png)
 
 ## Why
 
@@ -55,6 +55,8 @@ flowchart LR
   F --> G[Verdict, SAPI, evidence, actions]
   G --> H[Badge + popup + history/CSV]
 ```
+
+![Security findings: exposed dev dashboards, phpinfo(), PHP-FPM status, DebugBar and IOCs](docs/screenshot-2-findings.png)
 
 ### 1. Passive collection (always on)
 
@@ -124,7 +126,7 @@ From Hunt.io's research on attacker open directories, the badge shows `IOC` and 
 - the page is a directory listing that contains PHP2Shell toolkit files (`aslr_exploit.py`, `deep_probe.py`,
   `c2.py`, `probe_rfc1867.py`, `verify_fixation.py`, `autologin_fd.php`, `tebaran_*`).
 
-![IOC banner on an attacker open directory](docs/screenshot-ioc.png)
+![IOC banner on an attacker open directory](docs/screenshot-3-ioc.png)
 
 ## Limitations
 
