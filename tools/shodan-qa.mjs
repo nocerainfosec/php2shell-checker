@@ -1,11 +1,13 @@
 // QA das regras com um export do Shodan (JSON por linha, .json ou .json.gz).
 // Roda as mesmas funções da extensão em cada banner HTTP e resume onde as regras acertam, falham ou não cobrem.
-// Uso: node tools/shodan-qa.mjs <arquivo.json.gz> [--limit N] [--json saida.json]
+// Uso: node tools/shodan-qa.mjs <arquivo.json.gz> [--limit N] [--json saida.json] [--include-honeypots]
+// Banners marcados como honeypot pelo Shodan são ignorados por padrão: eles imitam dezenas de produtos de uma vez.
 import { createReadStream, writeFileSync } from "node:fs";
 import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import {
   analyzeHeaders, assess, classifyVersion, extractPhpVersion, parsePhpinfo, sapiFromHeaders, matchIocHost, matchIocFiles,
+  versionsFromSignatures, parseDevDashboard,
 } from "../lib/php-rules.js";
 import { render } from "../lib/i18n.js";
 
@@ -13,6 +15,7 @@ const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith("--"));
 const limit = args.includes("--limit") ? +args[args.indexOf("--limit") + 1] : Infinity;
 const jsonOut = args.includes("--json") ? args[args.indexOf("--json") + 1] : null;
+const includeHoneypots = args.includes("--include-honeypots");
 if (!file) {
   console.error("uso: node tools/shodan-qa.mjs <arquivo.json.gz> [--limit N] [--json saida.json]");
   process.exit(1);
@@ -51,6 +54,8 @@ const stats = {
   lines: 0,
   badJson: 0,
   http: 0,
+  honeypots: 0,
+  fromSignature: 0,
   withPhpVersion: 0,
   phpNoVersion: 0,
   errors: 0,
@@ -75,6 +80,7 @@ const phpinfoSapi = new Counter();
 const uploadProgress = new Counter();
 const cpeMismatch = new Counter();
 const iocHosts = new Counter();
+const devDashboards = new Counter();
 const iocFiles = new Counter();
 const errorSamples = new Samples(5);
 const phpinfoFailures = new Samples(5);
@@ -97,10 +103,32 @@ const PHP_COOKIE = /^(PHPSESSID|laravel_session|ci_session|CAKEPHP|wordpress_|wp
 function processRecord(r) {
   const headers = typeof r.data === "string" ? parseRawHeaders(r.data) : null;
   if (!headers) return;
+  if (!includeHoneypots && (r.tags || []).includes("honeypot")) {
+    stats.honeypots++;
+    return;
+  }
   stats.http++;
 
   const found = analyzeHeaders(headers);
   const host = { versions: found.versions.map((x) => ({ ...x.v, source: x.source })), indicators: [...found.indicators], phpinfo: null };
+
+  // Assinatura do Apache no corpo, como o content script lê do elemento <address>.
+  const html0 = r.http && typeof r.http.html === "string" ? r.http.html : "";
+  const sigs = [...html0.matchAll(/<address>([^<]*PHP\/\d[^<]*)<\/address>/gi)].map((m) => m[1]);
+  const sigVersions = versionsFromSignatures(sigs);
+  if (sigVersions.length && !host.versions.length) stats.fromSignature++;
+  for (const { v, source } of sigVersions) host.versions.push({ ...v, source });
+
+  // Painel de desenvolvimento exposto (WampServer, Laragon...), como o content script lê do título e do texto.
+  const dash = parseDevDashboard((r.http && r.http.title) || "", html0.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " "));
+  if (dash) {
+    devDashboards.add(`${dash.name} ${dash.versions.join(",") || "(sem versão)"}${dash.modphp ? " mod_php" : ""}`);
+    host.indicators.push({ kind: "alert", value: dash.name });
+    for (const text of host.versions.length ? [] : dash.versions) {
+      const v = extractPhpVersion(text);
+      if (v) host.versions.push({ ...v, source: dash.name });
+    }
+  }
 
   const ioc = matchIocHost(r.ip_str || "");
   if (ioc) {
@@ -210,7 +238,8 @@ const table = (title, rows) => {
 };
 
 console.log(`# QA Shodan: ${file}`);
-console.log(`linhas ${stats.lines}, JSON inválido ${stats.badJson}, banners HTTP ${stats.http}, erros ${stats.errors}`);
+console.log(`linhas ${stats.lines}, JSON inválido ${stats.badJson}, banners HTTP ${stats.http}, honeypots ignorados ${stats.honeypots}, erros ${stats.errors}`);
+console.log(`versão só pela assinatura do Apache no corpo: ${stats.fromSignature}`);
 console.log(`com versão do PHP ${stats.withPhpVersion} (${pct(stats.withPhpVersion, stats.http)}), PHP sem versão ${stats.phpNoVersion}`);
 console.log(`CPE do PHP no Shodan: ${stats.cpePhp}, concorda ${stats.cpeAgree} (${pct(stats.cpeAgree, stats.cpePhp)}), discorda ${stats.cpeDisagree}`);
 console.log(`phpinfo(): ${stats.phpinfoPages} páginas, ${stats.phpinfoParsed} lidas, ${stats.phpinfoHardLimit} com memory_hard_limit_percent`);
@@ -226,6 +255,7 @@ table("phpinfo: session.upload_progress.enabled", uploadProgress.top(5));
 table("X-Powered-By sem PHP marcado como PHP", xpbNonPhpFlagged.top(15));
 table("X-Powered-By sem PHP ignorado", xpbNonPhpIgnored.top(15));
 table("X-Powered-By sem PHP junto com cookie de PHP (candidatos a PHP_PRODUCTS)", xpbNonPhpWithPhpCookie.top(15));
+table("Painéis de desenvolvimento expostos", devDashboards.top(15));
 table("Hosts de IOC", iocHosts.top(20));
 table("Arquivos de IOC em diretórios abertos", iocFiles.top(20));
 if (errorSamples.m.size) console.log("\n## Erros\n", Object.fromEntries(errorSamples.m));

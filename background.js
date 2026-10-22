@@ -1,7 +1,7 @@
 // Service worker: coleta passivamente cabeçalhos e indícios de PHP por aba e por host.
 import {
   extractPhpVersion, assess, STATUS, STATUS_INFO, RULES_VERSION, matchIocHost, matchIocFiles, IOC_SOURCE,
-  parsePhpinfo, sapiFromHeaders, statusLabel, analyzeHeaders, CODE_VERSION,
+  parsePhpinfo, sapiFromHeaders, statusLabel, analyzeHeaders, CODE_VERSION, versionsFromSignatures, parseDevDashboard,
 } from "./lib/php-rules.js";
 import { msg, render, t, detectLang } from "./lib/i18n.js";
 
@@ -191,6 +191,20 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
       const src = msg("src.content");
       for (const i of m.indicators || []) addIndicator(h, i.kind, i.value, src);
       applyPhpinfo(h, parsePhpinfo(m.phpinfoHtml), src);
+      const dash = m.dashboard && parseDevDashboard(m.dashboard.title, m.dashboard.text);
+      if (dash) {
+        addIndicator(h, "alert", msg("ind.devDashboard", { name: dash.name }), src);
+        // O texto do painel pode estar desatualizado (no QA, 5 de 186 diferiam do cabeçalho): só vale sem outra versão.
+        for (const text of h.versions.length ? [] : dash.versions) {
+          const v = extractPhpVersion(text);
+          if (v) addVersion(h, v, `${dash.name}: ${text}`);
+        }
+        if (dash.modphp) addSapi(h, msg("sapi.modphp"));
+      }
+      for (const { v, source } of versionsFromSignatures(m.signatures)) {
+        addVersion(h, v, source);
+        for (const hint of sapiFromHeaders(source, "")) addSapi(h, hint);
+      }
       // Diretório aberto: compara os nomes listados com os arquivos dos toolkits de ataque.
       for (const hit of matchIocFiles(m.listing || [])) {
         addIndicator(h, "ioc", msg("ind.iocFile", { file: hit.file, label: msg(hit.label) }), IOC_SOURCE);

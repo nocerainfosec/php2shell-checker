@@ -17,8 +17,11 @@
   const generator = document.querySelector('meta[name="generator" i]');
   if (generator) {
     const g = generator.content || "";
-    if (/wordpress|drupal|joomla|typo3|magento|prestashop|opencart|moodle|mediawiki|concrete|craft cms|october|grav|processwire/i.test(g)) {
+    if (/wordpress|drupal|joomla|typo3|magento|prestashop|opencart|moodle|mediawiki|concrete|craft cms|october|grav|processwire|roadiz|spip|limesurvey|vbulletin|vbadvanced|discuz|matomo|piwik|dokuwiki|phpbb|xenforo|modx|silverstripe|pimcore|shopware|codecharge/i.test(g)) {
       add("dom", msg("ind.generator", { v: g.slice(0, 80) }));
+    } else if (/elementor|all in one seo|aioseo|wpbakery|layerslider|slider revolution|site kit by google|wpml|yoast|woocommerce/i.test(g)) {
+      // Plugins do WordPress também se anunciam no generator.
+      add("dom", msg("ind.generator", { v: `WordPress plugin: ${g.slice(0, 60)}` }));
     }
   }
 
@@ -88,7 +91,19 @@
       .slice(0, 2000);
   }
 
-  if (indicators.length || listing.length || phpinfoHtml) {
-    chrome.runtime.sendMessage({ type: "hints", indicators, listing, phpinfoHtml }).catch(() => {});
+  // Painel de stack de desenvolvimento (WampServer, Laragon, XAMPP, MAMP): o background lê as versões do texto.
+  let dashboard = null;
+  if (/WAMPSERVER|Laragon|XAMPP|\bMAMP\b/i.test(document.title) && document.body) {
+    dashboard = { title: document.title, text: document.body.innerText.slice(0, 50000) };
+  }
+
+  // Assinatura do Apache (<address>) em páginas de erro e listagens, que pode trazer "PHP/x.y.z".
+  const signatures = [...document.querySelectorAll("address")]
+    .map((a) => a.textContent)
+    .filter((s) => /PHP\/\d/i.test(s))
+    .slice(0, 5);
+
+  if (indicators.length || listing.length || phpinfoHtml || signatures.length || dashboard) {
+    chrome.runtime.sendMessage({ type: "hints", indicators, listing, phpinfoHtml, signatures, dashboard }).catch(() => {});
   }
 })();

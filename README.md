@@ -63,9 +63,12 @@ Nothing extra is sent to the site. The extension reads what the browser already 
 | Source | What it looks for |
 |---|---|
 | `X-Powered-By`, `Server` | Version strings: `PHP/8.1.2-1ubuntu2.14`, `Apache/2.4 (Ubuntu) PHP/8.0.30` |
-| `Set-Cookie` (including HttpOnly) | `PHPSESSID`, `laravel_session`, `ci_session`, Drupal `SESS…`, `zbx_session`, `WHMCS…` and others |
-| Other headers | `X-Pingback`, `X-Generator`, `X-Drupal-Cache`, `X-Magento-*`, WordPress `Link` |
-| Page content | A public `phpinfo()` page, `<meta name="generator">`, `wp-content`, `.php` links, PHP error messages |
+| `X-Powered-By` without a version | `php`, `ThinkPHP`, `FrankenPHP`, PHP frameworks (`Fat-Free Framework`, `Nette`, `Craft CMS`…) |
+| `Set-Cookie` (including HttpOnly) | `PHPSESSID`, `laravel_session`, `XSRF-TOKEN` + `<app>_session` (Laravel), `ci_session`, Drupal `SESS…`, Nextcloud/ownCloud, `zbx_session`, Cacti, `WHMCS…` and others |
+| Other headers | `X-PHP-PID`, `X-PHP-Response-Code`, `X-Pingback`, `X-Generator`, `X-Drupal-Cache`, `X-Magento-*`, WordPress `Link` |
+| Page content | A public `phpinfo()` page, Apache's `<address>` signature (`Apache/2.4 … PHP/7.2.18 Server at …`), `<meta name="generator">` for PHP CMSs and WordPress plugins, `wp-content`, `.php` links, PHP error messages |
+| Exposed dev dashboards | WampServer, Laragon, XAMPP, MAMP homepages: flagged as a finding, and their PHP version is used when headers give none |
+| Security findings | PHP DebugBar enabled in production (`phpdebugbar-id`), public `phpinfo()`, PHP-FPM status page |
 | Every host the page loads | APIs and asset hosts are rated separately ("other hosts") |
 | Attack signal | `PHPSESSID` with an abnormally large value, a PHP2Shell exploitation sign |
 
@@ -139,8 +142,11 @@ From Hunt.io's research on attacker open directories, the badge shows `IOC` and 
 - Tests: `node --test tests/*.test.mjs` (Node 20+).
 - QA with real data: `node tools/shodan-qa.mjs <shodan-export.json.gz>` runs every HTTP banner of a Shodan export
   through the same rules and reports verdicts, parser gaps, unmapped distro packages, agreement with Shodan's own
-  PHP CPE, phpinfo() pages and IOC hits. On a 10,000-banner sample it read the same PHP version as Shodan in 99.9%
-  of cases. Keep exports and evidence out of git (`samples/` and `evidences/` are ignored).
+  PHP CPE, phpinfo() pages, exposed dev dashboards and IOC hits. Banners Shodan tags as honeypots are skipped by
+  default (`--include-honeypots` to keep them): they imitate dozens of products at once and skew the numbers.
+  On a 10,000-banner sample (8,983 after removing honeypots) it read a PHP version on 98.4% of hosts and agreed
+  with Shodan's own PHP CPE on 8,584 of 8,588. Keep exports and evidence out of git (`samples/` and `evidences/`
+  are ignored).
 - After changing rules, bump `RULES_VERSION` and reload the extension in `chrome://extensions`.
 
 Pull requests with new advisories, distro packages or detection signals are welcome. Please cite the source.

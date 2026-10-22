@@ -143,3 +143,48 @@ test("QA Shodan: cabeçalhos com PHP sem versão e X-Powered-By de outras stacks
   assert.equal(verdict("X-Powered-By", "ASP.NET"), "not_detected");
   assert.equal(sapiFromHeaders("", "FrankenPHP Caddy")[0].k, "sapi.caddy");
 });
+
+// Sinais aprendidos com o Shodan, confirmados em hosts reais (fora dos honeypots).
+import { versionsFromSignatures } from "../lib/php-rules.js";
+
+test("QA Shodan: novos sinais de cabeçalho e cookie", () => {
+  const kinds = (hdrs) => analyzeHeaders(hdrs).indicators.map((i) => i.kind);
+  assert.deepEqual(kinds([{ name: "phpdebugbar-id", value: "01M5J" }]), ["alert"]);
+  assert.deepEqual(kinds([{ name: "X-PHP-PID", value: "4720" }]), ["header"]);
+  assert.deepEqual(kinds([{ name: "X-PHP-Response-Code", value: "403" }]), ["header"]);
+  assert.deepEqual(kinds([{ name: "Set-Cookie", value: "oc_sessionPassphrase=x" }]), ["cookie"]);
+  const laravel = analyzeHeaders([
+    { name: "Set-Cookie", value: "XSRF-TOKEN=a; path=/" },
+    { name: "Set-Cookie", value: "subs_session=b; path=/; httponly" },
+  ]).indicators;
+  assert.equal(laravel.length, 1);
+  assert.equal(laravel[0].value.p.label, "Laravel");
+  // Só um dos dois não basta.
+  assert.equal(analyzeHeaders([{ name: "Set-Cookie", value: "XSRF-TOKEN=a" }]).indicators.length, 0);
+  assert.equal(analyzeHeaders([{ name: "Set-Cookie", value: "csrftoken=a" }]).indicators.length, 0);
+});
+
+test("QA Shodan: versão pela assinatura do Apache", () => {
+  const [s] = versionsFromSignatures(["Apache/2.4.39 (Win64) OpenSSL/1.1.1b PHP/7.2.18 mod_fcgid/2.3.10-dev Server at x Port 80"]);
+  assert.equal(s.v.full, "7.2.18");
+  assert.match(s.source, /^Apache signature:/);
+  assert.equal(versionsFromSignatures(["Apache/2.4.39 Server at x Port 80"]).length, 0);
+});
+
+import { parseDevDashboard } from "../lib/php-rules.js";
+
+test("QA Shodan: painéis WampServer e Laragon expostos", () => {
+  const wamp = parseDevDashboard("Accueil WAMPSERVER", "Apache/2.4.54 (Win64) PHP/8.0.26 - Port 80 PHP 8.0.26 -> Apache module PHP 8.0.26 -> CLI - FCGI PHP 7.4.33 used for CLI");
+  assert.deepEqual(wamp, { name: "WampServer", versions: ["PHP 8.0.26"], modphp: true });
+  const laragon = parseDevDashboard("Laragon", "Apache/2.4.66 (Win64) OpenSSL/3.0.18 PHP/8.3.30 PHP version: 8.3.30 phpinfo()");
+  assert.deepEqual(laragon, { name: "Laragon", versions: ["PHP 8.3.30"], modphp: false });
+  assert.equal(parseDevDashboard("Welcome", "PHP version: 8.3.30"), null);
+});
+
+test("QA Shodan: WampServer antigo e XAMPP", () => {
+  assert.deepEqual(parseDevDashboard("WAMPSERVER Homepage", "Apache Version : 2.2.11 PHP Version : 5.3.0 Loaded Extensions").versions, ["PHP 5.3.0"]);
+  assert.deepEqual(parseDevDashboard("Welcome to XAMPP", "Apache + MariaDB + PHP + Perl Welcome to XAMPP for Windows 8.2.12 You have").versions, ["PHP 8.2.12"]);
+  assert.deepEqual(parseDevDashboard("XAMPP 5.6.3", "").versions, ["PHP 5.6.3"]);
+  // XAMPP 1.x tem numeração própria, não é a versão do PHP.
+  assert.deepEqual(parseDevDashboard("XAMPP 1.8.1", "").versions, []);
+});
