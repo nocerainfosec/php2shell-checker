@@ -3,7 +3,7 @@
 **A free Chrome extension for Blue Teams: see a site's PHP version and whether it is exposed to PHP2Shell
 (CVE-2026-109618 / CVE-2026-109619), straight from the browser.**
 
-By **NoceraInfoSec®** · MIT license · [Leia em português](#português)
+By **NoceraInfoSec®** · MIT license
 
 ![Popup showing a PHP 8.3.35 site analysed by the extension](docs/screenshot-en.png)
 
@@ -26,8 +26,8 @@ This extension turns those details into a verdict, the evidence behind it, and w
 3. Click **Load unpacked** and select the folder.
 4. Pin the icon. Reload tabs that were already open.
 
-Works in Chrome, Edge, Brave and other Chromium browsers (Manifest V3). The interface follows the browser
-language (English or Portuguese) and can be switched with the **PT/EN** button in the popup.
+Works in Chrome, Edge, Brave and other Chromium browsers (Manifest V3). The interface is available in English and
+Portuguese: it follows the browser language and can be switched with the **PT/EN** button in the popup.
 
 ## How to use
 
@@ -143,7 +143,7 @@ Pull requests with new advisories, distro packages or detection signals are welc
 
 ## Sources
 
-- NoceraInfoSec®, *PHP2Shell: análise de exposição e guia técnico* (v1.0, 22 Oct 2026).
+- NoceraInfoSec®, *PHP2Shell: análise de exposição e guia técnico* ("exposure analysis and technical guide", v1.0, 22 Oct 2026).
 - [Hunt.io: Hunting Leaked PHP2Shell RCE Across Open Directories](https://hunt.io/blog/php2shell-cve-2026-109618-109619-open-directories)
 - [Brandefense: PHP2Shell fixed PHP versions](https://brandefense.io/blog/php2shell-php-rce-cve-2026-109618-109619/)
 - [ComputingForGeeks: PHP2Shell check and patch](https://computingforgeeks.com/php2shell-cve-2026-109618-check-patch/)
@@ -152,54 +152,6 @@ Pull requests with new advisories, distro packages or detection signals are welc
 - [SOCRadar: PHP2Shell affected versions](https://socradar.io/blog/php2shell-cve-2026-109618-cve-2026-109619/)
 - [Prophet Security: detecting and investigating PHP2Shell](https://www.prophetsecurity.ai/blog/php2shell)
 - [PHP Watch: PHP easter eggs](https://php.watch/articles/php-easter-eggs)
-
----
-
-## Português
-
-**Extensão gratuita para Blue Teams: veja a versão do PHP de um site e se ele está exposto ao PHP2Shell
-(CVE-2026-109618 / CVE-2026-109619), direto do navegador.**
-
-![Popup em português](docs/screenshot-pt.png)
-
-### Instalação
-
-1. Baixe este repositório (**Code → Download ZIP**) e descompacte, ou faça `git clone`.
-2. Abra `chrome://extensions` e ative o **Modo do desenvolvedor**.
-3. Clique em **Carregar sem compactação** e selecione a pasta.
-4. Fixe o ícone e recarregue as abas que já estavam abertas.
-
-A interface segue o idioma do navegador e pode ser trocada pelo botão **PT/EN** no popup.
-
-### Como usar
-
-- **Navegue normalmente.** O badge mostra o branch (ex.: `8.3`) na cor do veredito: vermelho = vulnerável/EOL,
-  laranja = confirmar backport, verde = patch/backport, cinza = PHP sem versão, `IOC` = infraestrutura de ataque.
-- **Clique no ícone** para ver veredito, SAPI, evidências, o que fazer, outros hosts com PHP e consultas no
-  Shodan, Censys e checkers públicos.
-- **Re-checar** envia dois GETs comuns (`/` e `/index.php`), sem cookies.
-- **Checagem profunda** (pede um segundo clique) envia cerca de 15 GETs a caminhos públicos conhecidos
-  (phpinfo, status do FPM, server-status, `.php` inexistente, easter egg). Sem exploit, mas pode aparecer no WAF:
-  **use só em ativos que você tem autorização para testar**.
-- **Copiar relatório** gera texto para ticket. **Histórico** exporta CSV para inventário.
-
-### Como funciona
-
-1. **Coleta passiva:** lê cabeçalhos (`X-Powered-By`, `Server`, `Set-Cookie`, inclusive HttpOnly) e o DOM
-   (phpinfo, meta generator, links `.php`, erros do PHP, listagens de diretório) de todos os hosts da página.
-2. **Regras de versão:** compara com as versões corrigidas por branch, pacotes corrigidos de Ubuntu, Debian,
-   RHEL, Remi, Sury, cPanel, CloudLinux e imagens da Aikido (tabelas acima), builds RC e branches EOL.
-3. **SAPI:** `PHP/x` no cabeçalho `Server` indica mod_php (maior risco segundo o PHP); nginx indica FPM;
-   LiteSpeed indica lsphp; Caddy indica FrankenPHP.
-4. **Checagem profunda:** `phpinfo()` exposto revela versão, SAPI, `session.upload_progress.enabled` (paliativo
-   oficial) e `memory_hard_limit_percent`, diretiva que só existe em builds corrigidas.
-5. **IOC:** IPs, rede, domínios de C2 e arquivos de toolkit do PHP2Shell publicados pela Hunt.io.
-
-### Limitações
-
-A versão é só o que o servidor **anuncia**. Distribuições e fornecedores corrigem sem mudar o número.
-**Só a versão e o pacote instalados no servidor são conclusivos.** "PHP não detectado" não exclui PHP atrás de
-CDN ou proxy. A extensão não é um scanner de exploração e não substitui a verificação interna nem o Nuclei.
 
 ---
 
