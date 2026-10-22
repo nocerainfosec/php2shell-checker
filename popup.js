@@ -1,4 +1,4 @@
-import { STATUS_INFO, statusLabel } from "./lib/php-rules.js";
+import { STATUS_INFO, statusLabel, CODE_VERSION } from "./lib/php-rules.js";
 import { t, render, detectLang, LANGS } from "./lib/i18n.js";
 
 const $ = (id) => document.getElementById(id);
@@ -49,6 +49,8 @@ function lookups(host) {
 async function renderSite() {
   const report = await send({ type: "getTab", tabId: currentTabId });
   lastReport = report;
+  // Arquivos novos no disco com o service worker antigo ainda rodando (ex.: depois de um git pull).
+  $("stale").hidden = report.codeVersion === CODE_VERSION;
   $("rules").textContent = tr("ui.rules", { d: report.rulesVersion });
 
   if (!report.tab || !report.hosts.length) {
@@ -224,6 +226,8 @@ for (const tab of document.querySelectorAll(".tab")) {
     if (tab.dataset.view === "history") renderHistory();
   });
 }
+
+$("reload-ext").addEventListener("click", () => chrome.runtime.reload());
 
 $("lang").addEventListener("click", async () => {
   lang = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length];

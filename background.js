@@ -1,7 +1,7 @@
 // Service worker: coleta passivamente cabeçalhos e indícios de PHP por aba e por host.
 import {
   extractPhpVersion, assess, STATUS, STATUS_INFO, RULES_VERSION, matchIocHost, matchIocFiles, IOC_SOURCE,
-  parsePhpinfo, sapiFromHeaders, statusLabel,
+  parsePhpinfo, sapiFromHeaders, statusLabel, analyzeHeaders, CODE_VERSION,
 } from "./lib/php-rules.js";
 import { msg, render, t, detectLang } from "./lib/i18n.js";
 
@@ -12,35 +12,6 @@ const REDIRECT_CHAIN_MS = 5000;
 const DEEP_TIMEOUT_MS = 8000;
 const DEEP_MAX_BYTES = 400000;
 const EXT_ORIGIN = chrome.runtime.getURL("").replace(/\/$/, "");
-
-// Cookies que indicam PHP ou um framework/CMS em PHP.
-const COOKIE_HINTS = [
-  [/^PHPSESSID$/i, "PHP"],
-  [/^laravel_session$/i, "Laravel"],
-  [/^ci_session$/i, "CodeIgniter"],
-  [/^CAKEPHP$/i, "CakePHP"],
-  [/^(wordpress_|wp-settings|wordpress_logged_in)/i, "WordPress"],
-  [/^S?SESS[0-9a-f]{32}$/i, "Drupal"],
-  [/^PrestaShop-/i, "PrestaShop"],
-  [/^(frontend|adminhtml|mage-cache-sessid)$/i, "Magento"],
-  [/^symfony$|^sf_redirect$/i, "Symfony"],
-  [/^MOODLEID_|^MoodleSession/i, "Moodle"],
-  [/^zbx_session$/i, "Zabbix"],
-  [/^phpMyAdmin|^pma_/i, "phpMyAdmin"],
-  [/^roundcube_sessid$/i, "Roundcube"],
-  [/^GLPI_/i, "GLPI"],
-  [/^WHMCS/i, "WHMCS"],
-];
-
-// Cabeçalhos que indicam PHP mesmo sem a versão.
-const HEADER_HINTS = [
-  [/^x-pingback$/i, () => "WordPress (X-Pingback / xmlrpc.php)"],
-  [/^x-generator$/i, (v) => (/drupal|wordpress|joomla|typo3/i.test(v) ? msg("ind.generator", { v }) : null)],
-  [/^x-drupal-(cache|dynamic-cache)$/i, () => "Drupal"],
-  [/^x-magento-/i, () => "Magento"],
-  [/^x-powered-cms$/i, (v) => `CMS: ${v}`],
-  [/^link$/i, (v) => (/wp-json|api\.w\.org/i.test(v) ? "WordPress (REST API, Link header)" : null)],
-];
 
 // ---------- Idioma ----------
 
@@ -163,43 +134,11 @@ function processHeaders(tabId, details, probeLabel) {
   const src = msg(probeLabel || (details.type === "main_frame" ? "src.page" : "src.resource"), { path });
   let touched = false;
 
-  for (const { name, value = "" } of details.responseHeaders || []) {
-    const n = name.toLowerCase();
-
-    if (n === "x-powered-by" || n === "server") {
-      h.headers[n] = value;
-      const v = extractPhpVersion(value);
-      if (v) addVersion(h, v, `${name}: ${value}`);
-      else if (n === "x-powered-by") addIndicator(h, "header", `X-Powered-By: ${value}`, src);
-      touched = true;
-      continue;
-    }
-
-    if (n === "set-cookie") {
-      const cookieName = value.split("=")[0].trim();
-      for (const [re, label] of COOKIE_HINTS) {
-        if (re.test(cookieName)) {
-          addIndicator(h, "cookie", msg("ind.cookie", { name: cookieName, label }), src);
-          touched = true;
-        }
-      }
-      if (/^PHPSESSID$/i.test(cookieName)) {
-        const val = value.split(";")[0].slice(cookieName.length + 1);
-        if (val.length > 128) addIndicator(h, "alert", msg("ind.bigSess", { n: val.length }), src);
-      }
-      continue;
-    }
-
-    for (const [re, fn] of HEADER_HINTS) {
-      if (re.test(n)) {
-        const label = fn(value);
-        if (label) {
-          addIndicator(h, "header", label, src);
-          touched = true;
-        }
-      }
-    }
-  }
+  const found = analyzeHeaders(details.responseHeaders || []);
+  Object.assign(h.headers, found.headers);
+  for (const { v, source } of found.versions) addVersion(h, v, source);
+  for (const { kind, value } of found.indicators) addIndicator(h, kind, value, src);
+  if (found.versions.length || found.indicators.length || Object.keys(found.headers).length) touched = true;
 
   if (/\.php\d?$/i.test(path) && details.statusCode < 400) {
     addIndicator(h, "url", msg("ind.phpUrl", { path: path.slice(0, 80) }), src);
@@ -283,7 +222,7 @@ const hasIoc = (h) => h.indicators.some((i) => i.kind === "ioc");
 
 function buildReport(tabId) {
   const tab = tabs.get(tabId);
-  if (!tab) return { tab: null, rulesVersion: RULES_VERSION };
+  if (!tab) return { tab: null, rulesVersion: RULES_VERSION, codeVersion: CODE_VERSION };
   const hosts = Object.entries(tab.hosts)
     .map(([hostname, h]) => ({ hostname, ...h, verdict: assess(h) }))
     .filter((h) => h.hostname === tab.topHost || h.verdict.status !== STATUS.NOT_DETECTED || hasIoc(h))
@@ -292,7 +231,12 @@ function buildReport(tabId) {
       if (b.hostname === tab.topHost) return 1;
       return STATUS_INFO[b.verdict.status].severity - STATUS_INFO[a.verdict.status].severity;
     });
-  return { tab: { url: tab.url, topHost: tab.topHost, updated: tab.updated }, hosts, rulesVersion: RULES_VERSION };
+  return {
+    tab: { url: tab.url, topHost: tab.topHost, updated: tab.updated },
+    hosts,
+    rulesVersion: RULES_VERSION,
+    codeVersion: CODE_VERSION,
+  };
 }
 
 async function tabOrigin(tabId) {

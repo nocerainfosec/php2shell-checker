@@ -137,6 +137,10 @@ From Hunt.io's research on attacker open directories, the badge shows `IOC` and 
 - Rules and indicators: `lib/php-rules.js` (`FIXED`, `DISTRO_FIXED`, `SURY_FIXED`, `VENDOR_BACKPORTS`, `IOC_*`).
 - Translations: `lib/i18n.js` (every message exists in English and Portuguese).
 - Tests: `node --test tests/*.test.mjs` (Node 20+).
+- QA with real data: `node tools/shodan-qa.mjs <shodan-export.json.gz>` runs every HTTP banner of a Shodan export
+  through the same rules and reports verdicts, parser gaps, unmapped distro packages, agreement with Shodan's own
+  PHP CPE, phpinfo() pages and IOC hits. On a 10,000-banner sample it read the same PHP version as Shodan in 99.9%
+  of cases. Keep exports and evidence out of git (`samples/` and `evidences/` are ignored).
 - After changing rules, bump `RULES_VERSION` and reload the extension in `chrome://extensions`.
 
 Pull requests with new advisories, distro packages or detection signals are welcome. Please cite the source.

@@ -116,3 +116,30 @@ test("toda chave usada no código existe no dicionário, em inglês e português
   const r = classifyVersion(extractPhpVersion("PHP/7.4.33"));
   assert.doesNotMatch(render("pt", r.detail), /\{\w+\}/);
 });
+
+// Casos reais encontrados no QA com dados do Shodan (tools/shodan-qa.mjs).
+import { analyzeHeaders, distroRelease } from "../lib/php-rules.js";
+
+test("QA Shodan: builds rotuladas, Dotdeb e releases de distro", () => {
+  assert.equal(status("PHP/7.4.33-php2shell-fix"), "check");
+  assert.equal(status("PHP/5.3.10-1ubuntu3.48+php2shell2"), "check");
+  assert.equal(status("PHP/5.3.24-1~dotdeb.0"), "eol");
+  assert.equal(status("PHP/5.2.9-0.dotdeb.2"), "eol");
+  assert.equal(status("PHP/7.4.3-4ubuntu2.24"), "vulnerable");
+  assert.equal(distroRelease("5.5.9", "-1ubuntu4.21"), "Ubuntu 14.04");
+  assert.equal(distroRelease("7.0.33", "-0ubuntu0.16.04.16"), "Ubuntu 16.04");
+  assert.equal(distroRelease("5.6.20", "-0+deb8u1"), "Debian 8");
+  assert.equal(distroRelease("5.6.40", "-57+ubuntu18.04.1+deb.sury.org+1"), "Sury (Ubuntu 18.04)");
+});
+
+test("QA Shodan: cabeçalhos com PHP sem versão e X-Powered-By de outras stacks", () => {
+  const verdict = (name, value) => assess({ versions: [], indicators: analyzeHeaders([{ name, value }]).indicators }).status;
+  assert.equal(verdict("X-Powered-By", "php"), "no_version");
+  assert.equal(verdict("X-Powered-By", "ThinkPHP"), "no_version");
+  assert.equal(verdict("X-Powered-By", "Fat-Free Framework"), "no_version");
+  assert.equal(verdict("Server", "thttpd/2.25b PHP/20030920"), "no_version");
+  assert.equal(verdict("X-Powered-By", "Express"), "not_detected");
+  assert.equal(verdict("X-Powered-By", "Next.js"), "not_detected");
+  assert.equal(verdict("X-Powered-By", "ASP.NET"), "not_detected");
+  assert.equal(sapiFromHeaders("", "FrankenPHP Caddy")[0].k, "sapi.caddy");
+});

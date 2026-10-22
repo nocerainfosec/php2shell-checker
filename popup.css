@@ -125,3 +125,20 @@ footer span { display: block; }
   font-size: 12px;
 }
 .buttons button.armed { background: #e37400; color: #fff; border-color: #e37400; }
+.stale {
+  background: #e37400;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.stale small { display: block; margin: 2px 0 6px; }
+.stale button {
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: #fff;
+  color: #1f1f1f;
+  font: 600 12px system-ui, sans-serif;
+  cursor: pointer;
+}
