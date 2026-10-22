@@ -4,7 +4,7 @@
   "short_name": "PHP2Shell",
   "version": "1.2.0",
   "description": "__MSG_extDescription__",
-  "author": "NoceraInfoSec®",
+  "author": "NoceraInfoSec® (https://nocerainfosec.com.br)",
   "permissions": [
     "webRequest",
     "storage",

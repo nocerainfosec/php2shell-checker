@@ -3,7 +3,7 @@
 **A free Chrome extension for Blue Teams: see a site's PHP version and whether it is exposed to PHP2Shell
 (CVE-2026-109618 / CVE-2026-109619), straight from the browser.**
 
-By **NoceraInfoSec®** · MIT license
+By **NoceraInfoSec®** · [nocerainfosec.com.br](https://nocerainfosec.com.br) · [github.com/nocerainfosec](https://github.com/nocerainfosec) · MIT license
 
 ![Popup showing a PHP 8.3.35 site analysed by the extension](docs/screenshot-en.png)
 
@@ -158,6 +158,13 @@ Pull requests with new advisories, distro packages or detection signals are welc
 - [PHP Watch: PHP easter eggs](https://php.watch/articles/php-easter-eggs)
 
 ---
+
+## Author
+
+**Guilherme Nocera / NoceraInfoSec®**, Purple Team and Offensive Security Researcher
+
+- Website: [nocerainfosec.com.br](https://nocerainfosec.com.br)
+- GitHub: [github.com/nocerainfosec](https://github.com/nocerainfosec)
 
 MIT © 2026 Guilherme Nocera / NoceraInfoSec®. NoceraInfoSec® is a registered trademark; the license covers the
 code only.

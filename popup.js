@@ -131,7 +131,7 @@ function reportText(r) {
     if (v.actions.length) lines.push(`${tr("r.actions")}:`, ...v.actions.map((a) => `- ${R(a)}`));
     lines.push(``);
   }
-  lines.push(tr("r.note"), ``, `PHP2Shell Version Checker · NoceraInfoSec®`);
+  lines.push(tr("r.note"), ``, `PHP2Shell Version Checker · NoceraInfoSec® · https://nocerainfosec.com.br · https://github.com/nocerainfosec`);
   return lines.join("\n");
 }
 
