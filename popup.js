@@ -42,7 +42,7 @@ function lookups(host) {
     ["Censys", `https://search.censys.io/search?resource=hosts&q=${q}`],
     ["SOCRadar", "https://socradar.io/free-tools/php2shell-checker"],
     ["Brandefense", "https://atlas.brandefense.io/php-vulnerability-check"],
-    ["Proteja a Web", "https://securetheweb.org/"],
+    ["securetheweb.org", "https://securetheweb.org/"],
   ];
 }
 

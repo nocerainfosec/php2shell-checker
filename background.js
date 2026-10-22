@@ -507,6 +507,26 @@ function recordHistory(tabId) {
   });
 }
 
+// A versão 1.0 gravava o histórico com textos fixos em português. Converte essas entradas para dados
+// neutros (cabeçalho bruto e mensagens traduzíveis) para que o histórico e o CSV sigam o idioma escolhido.
+async function migrateHistory() {
+  const { history } = await chrome.storage.local.get("history");
+  if (!history) return;
+  let changed = false;
+  for (const e of Object.values(history)) {
+    if (!("label" in e) && typeof e.ioc !== "string") continue;
+    delete e.label;
+    if (typeof e.evidence === "string") e.evidence = e.xPoweredBy || e.server || "";
+    if (typeof e.ioc === "string") e.ioc = e.ioc ? [msg("ui.ioc.title")] : [];
+    if (!e.sapi) e.sapi = [];
+    changed = true;
+  }
+  if (changed) await chrome.storage.local.set({ history });
+}
+chrome.runtime.onInstalled.addListener(() => {
+  historyChain = historyChain.then(migrateHistory);
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabs.delete(tabId);
   chrome.storage.session.remove(`tab:${tabId}`);
