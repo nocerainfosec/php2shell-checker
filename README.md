@@ -155,7 +155,6 @@ Pull requests with new advisories, distro packages or detection signals are welc
 
 ## Sources
 
-- NoceraInfoSec®, *PHP2Shell: análise de exposição e guia técnico* ("exposure analysis and technical guide", v1.0, 22 Oct 2026).
 - [Hunt.io: Hunting Leaked PHP2Shell RCE Across Open Directories](https://hunt.io/blog/php2shell-cve-2026-109618-109619-open-directories)
 - [Brandefense: PHP2Shell fixed PHP versions](https://brandefense.io/blog/php2shell-php-rce-cve-2026-109618-109619/)
 - [ComputingForGeeks: PHP2Shell check and patch](https://computingforgeeks.com/php2shell-cve-2026-109618-check-patch/)
