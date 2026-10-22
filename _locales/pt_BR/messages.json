@@ -1,0 +1,4 @@
+{
+  "extName": { "message": "PHP2Shell Version Checker" },
+  "extDescription": { "message": "Identifica passivamente a versão do PHP de um site e classifica a exposição ao PHP2Shell (CVE-2026-109618 / CVE-2026-109619). Por NoceraInfoSec®." }
+}

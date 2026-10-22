@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PHP2Shell Version Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="icons/icon32.png" alt="" width="20" height="20">
+      <strong>PHP2Shell Checker</strong>
+    </div>
+    <nav>
+      <button class="tab active" data-view="site" data-i18n="ui.site"></button>
+      <button class="tab" data-view="history" data-i18n="ui.history"></button>
+      <button id="lang" class="lang" title="Language / Idioma"></button>
+    </nav>
+  </header>
+
+  <main id="view-site">
+    <div id="host" class="host"></div>
+    <div id="ioc" class="ioc" hidden></div>
+    <section id="verdict" class="verdict">
+      <div class="status" id="status" data-i18n="ui.loading"></div>
+      <div class="version" id="version"></div>
+      <div class="title" id="title"></div>
+      <p class="detail" id="detail"></p>
+    </section>
+
+    <section id="sapi-wrap" hidden>
+      <h3 data-i18n="ui.sapi"></h3>
+      <ul id="sapi" class="list"></ul>
+    </section>
+
+    <section id="evidence-wrap" hidden>
+      <h3 data-i18n="ui.evidence"></h3>
+      <ul id="evidence" class="list"></ul>
+    </section>
+
+    <section id="actions-wrap" hidden>
+      <h3 data-i18n="ui.todo"></h3>
+      <ul id="actions" class="list"></ul>
+    </section>
+
+    <section id="others-wrap" hidden>
+      <h3 data-i18n="ui.others"></h3>
+      <ul id="others" class="list"></ul>
+    </section>
+
+    <section id="lookups-wrap" hidden>
+      <h3 data-i18n="ui.lookups"></h3>
+      <div id="lookups" class="lookups"></div>
+    </section>
+
+    <div class="buttons">
+      <button id="recheck" data-i18n="ui.recheck" data-i18n-title="ui.recheck.tip"></button>
+      <button id="deep" class="ghost" data-i18n="ui.deep"></button>
+      <button id="copy" class="ghost" data-i18n="ui.copy"></button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </main>
+
+  <main id="view-history" hidden>
+    <div class="buttons">
+      <button id="export" data-i18n="ui.export"></button>
+      <button id="clear" class="ghost" data-i18n="ui.clear"></button>
+    </div>
+    <table class="history">
+      <thead><tr><th data-i18n="ui.host"></th><th data-i18n="ui.version"></th><th data-i18n="ui.status"></th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+    <p id="history-empty" class="muted" data-i18n="ui.historyEmpty"></p>
+  </main>
+
+  <footer>
+    <span data-i18n="ui.footer"></span>
+    <span id="rules"></span>
+    <span>NoceraInfoSec® · <a href="https://github.com/nocerainfosec/php2shell-checker" target="_blank" rel="noopener">GitHub</a></span>
+  </footer>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Documentos locais (PDFs) ficam fora do repositório
+/*.pdf
+# Amostras de dados de terceiros (Shodan, Censys) usadas em QA local
+shodan*
+*.json.gz
+*.ndjson
+*.jsonl
+.DS_Store
