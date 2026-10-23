@@ -38,7 +38,7 @@ Portuguese: it follows the browser language and can be switched with the **PT/EN
   loaded by the page (APIs, CDNs) and one-click lookups on Shodan, Censys and public PHP2Shell checkers.
 - **Re-check** sends two plain GETs (`/` and `/index.php`) without cookies, for pages served from cache or
   opened before the extension was installed.
-- **Deep check** (asks for a second click) sends about 15 GETs to well-known public paths. No exploit traffic,
+- **Deep check** (asks for a second click) sends about 25 GETs to well-known public paths. No exploit traffic,
   but it can show up in a WAF: **use it only on assets you are authorized to test**.
 - **Copy report** produces ticket-ready text. **History** keeps every PHP host seen and exports CSV for inventory.
 
@@ -67,6 +67,8 @@ Nothing extra is sent to the site. The extension reads what the browser already 
 | `X-Powered-By`, `Server` | Version strings: `PHP/8.1.2-1ubuntu2.14`, `Apache/2.4 (Ubuntu) PHP/8.0.30` |
 | `X-Powered-By` without a version | `php`, `ThinkPHP`, `FrankenPHP`, PHP frameworks (`Fat-Free Framework`, `Nette`, `Craft CMS`…) |
 | `Set-Cookie` (including HttpOnly) | `PHPSESSID`, `laravel_session`, `XSRF-TOKEN` + `<app>_session` (Laravel), `ci_session`, Drupal `SESS…`, Nextcloud/ownCloud, `zbx_session`, Cacti, `WHMCS…` and others |
+| **`PHPSESSID` format** | The ID length and alphabet encode PHP's session INI. A 26-char `0-9a-v` ID (and the other legacy forms) needs directives **removed in PHP 7.1**, so it infers a **PHP ≤ 7.0 ceiling** — a verdict even when the version is hidden |
+| **Session cache-limiter headers** | `Expires: Thu, 19 Nov 1981 08:52:00 GMT` + `Cache-Control: no-store, no-cache, must-revalidate` + `Pragma: no-cache` (the date is hardcoded in php-src) proves PHP even when `X-Powered-By` is gone and the cookie was renamed |
 | Other headers | `X-PHP-PID`, `X-PHP-Response-Code`, `X-Pingback`, `X-Generator`, `X-Drupal-Cache`, `X-Magento-*`, WordPress `Link` |
 | Page content | A public `phpinfo()` page, Apache's `<address>` signature (`Apache/2.4 … PHP/7.2.18 Server at …`), `<meta name="generator">` for PHP CMSs and WordPress plugins, `wp-content`, `.php` links, PHP error messages |
 | Exposed dev dashboards | WampServer, Laragon, XAMPP, MAMP homepages: flagged as a finding, and their PHP version is used when headers give none |
@@ -79,7 +81,7 @@ Nothing extra is sent to the site. The extension reads what the browser already 
 | Verdict | When |
 |---|---|
 | **VULNERABLE** | 8.5 < 8.5.12, 8.4 < 8.4.27, 8.3 < 8.3.36, 8.2 < 8.2.35; RC builds; distro or Sury packages older than the known fixed package |
-| **UNSUPPORTED (EOL)** | 8.1 and older, with no sign of a vendor build |
+| **UNSUPPORTED (EOL)** | 8.1 and older, with no sign of a vendor build; or a `PHPSESSID` format that infers a PHP ≤ 7.0 ceiling (shown as `≤7.0`, marked inferred) |
 | **CONFIRM BACKPORT** | Distro package without a mapped advisory; last EOL releases that vendors patch silently (7.4.33, 8.0.30, 8.1.34…); Sury revisions reported as fixed |
 | **BACKPORT APPLIED** | Known fixed packages: Ubuntu 26.10/26.04/24.04/22.04/20.04 ESM, Debian 12/13; or a `phpinfo()` showing `memory_hard_limit_percent` |
 | **PATCHED VERSION** | Announced version at or above the fixed release |
@@ -110,11 +112,13 @@ PHP rates **Apache + mod_php** as the highest-risk setup. The extension infers t
 
 | Request | Why |
 |---|---|
-| `/phpinfo.php`, `/info.php`, `/test.php`, `/i.php`, `/php.php`, `/pi.php`, `/php_info.php`, `/_profiler/phpinfo` | Exposed `phpinfo()`: exact version, SAPI, `session.upload_progress.enabled` (the official stopgap) and `memory_hard_limit_percent`, a directive that only exists in fixed builds |
+| `/phpinfo.php`, `/info.php`, `/test.php`, `/i.php`, `/php.php`, `/pi.php`, `/php_info.php`, `/_profiler/phpinfo` (also under the first path segment, e.g. `/saude/phpinfo.php`) | Exposed `phpinfo()`: exact version, SAPI, `session.upload_progress.enabled` (the official stopgap) and `memory_hard_limit_percent`, a directive that only exists in fixed builds |
 | `/fpm-status`, `/status`, `/php-status`, `/php-fpm-status` | Exposed PHP-FPM status page (confirms FPM and is a finding by itself) |
 | `/server-status` | Apache mod_status, which may list `PHP/x.y.z` |
 | `/php2shell-check-<random>.php` | How the server answers a missing PHP file reveals nginx + FPM or FastCGI/CGI |
-| `/?=PHPE9568F34-D428-11d2-A769-00AA001ACF42` | The PHP logo easter egg only answers on PHP older than 5.5 |
+| `/index.php?-v`, `?-s`, `?-i` | php-cgi argument banners (CVE-2012-1823 class): exact version on an old php-cgi SAPI, or a source-disclosure finding. The dangerous `-d`/`auto_prepend_file` variants are never sent |
+| `/?=PHPE9568F34-…` (logo) and `?=PHPE9568F36-…` (credits) | The PHP easter eggs only answer on PHP older than 5.5 |
+| `/composer.json` vs a random `.json` | 403 vs 404 reveals a WAF/deny-list in front — which also explains why the other deep checks came back empty |
 
 It stops at the first hit in each group, never sends cookies and never sends a request body.
 
@@ -150,6 +154,7 @@ From Hunt.io's research on attacker open directories, the badge shows `IOC` and 
   with Shodan's own PHP CPE on 8,584 of 8,588. Keep exports and evidence out of git (`samples/` and `evidences/`
   are ignored).
 - After changing rules, bump `RULES_VERSION` and reload the extension in `chrome://extensions`.
+- Release notes: [`CHANGELOG.md`](CHANGELOG.md).
 
 Pull requests with new advisories, distro packages or detection signals are welcome. Please cite the source.
 

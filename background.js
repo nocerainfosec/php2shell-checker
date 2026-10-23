@@ -324,6 +324,15 @@ async function recheck(tabId) {
 const PHPINFO_PATHS = ["/phpinfo.php", "/info.php", "/test.php", "/i.php", "/php.php", "/pi.php", "/php_info.php", "/_profiler/phpinfo"];
 const FPM_STATUS_PATHS = ["/fpm-status", "/status", "/php-status", "/php-fpm-status"];
 const LOGO_GUID = "PHPE9568F34-D428-11d2-A769-00AA001ACF42";
+const CREDITS_GUID = "PHPE9568F36-D428-11d2-A769-00AA001ACF42";
+// Banners de argumento do php-cgi (classe CVE-2012-1823). GETs inofensivos: em mod_php/FPM a página responde
+// normalmente; num php-cgi antigo eles despejam o banner da versão ou o código-fonte do index.php.
+const CGI_BANNER_PROBES = [
+  { path: "/index.php?-v", kind: "banner" },
+  { path: "/index.php?-s", kind: "source" },
+  { path: "/index.php?-i", kind: "phpinfo" },
+];
+const looksLikeHtml = (s) => /^\s*(<!doctype|<html)/i.test(s);
 
 async function deepCheck(tabId) {
   const { tab, url, error } = await tabOrigin(tabId);
@@ -348,7 +357,12 @@ async function deepCheck(tabId) {
   };
   const isHtml200 = (res) => res && res.r.ok && !res.r.redirected;
 
-  for (const path of PHPINFO_PATHS) {
+  // phpinfo também sob o primeiro segmento do caminho: apps com front controller (ex.: /saude/) enterram o
+  // phpinfo um nível abaixo, fora da lista só-raiz.
+  const seg = url.pathname.split("/")[1] || "";
+  const prefix = seg && !/\.php\d?$/i.test(seg) ? "/" + seg : "";
+  const infoPaths = prefix ? [...PHPINFO_PATHS, ...PHPINFO_PATHS.map((p) => prefix + p)] : PHPINFO_PATHS;
+  for (const path of infoPaths) {
     const res = await tryGet(path);
     if (isHtml200(res)) {
       const info = parsePhpinfo(res.body);
@@ -395,11 +409,42 @@ async function deepCheck(tabId) {
     }
   }
 
-  // Easter egg do logo: só PHP < 5.5 com expose_php=On responde com uma imagem.
+  // Banners de argumento do php-cgi: versão exata em stacks php-cgi antigas, ou código-fonte (CVE-2012-1823).
+  for (const { path, kind } of CGI_BANNER_PROBES) {
+    const res = await tryGet(path);
+    if (!res || !res.r.ok) continue;
+    const body = (res.body || "").trim();
+    if (looksLikeHtml(body)) continue; // mod_php/FPM devolve a página normal: sem sinal.
+    if (kind === "banner") {
+      const v = extractPhpVersion(body.slice(0, 200));
+      if (v) addVersion(h, v, `php-cgi ?-v: ${body.slice(0, 60).trim()}`);
+    } else if (kind === "source" && /<\?(php|=)/i.test(body)) {
+      addIndicator(h, "alert", msg("ind.cgiSource"), src(path));
+    } else if (kind === "phpinfo" && /PHP Version/i.test(body)) {
+      const line = /PHP Version\s+([0-9A-Za-z.+~:_-]+)/i.exec(body);
+      const v = line && extractPhpVersion(line[0]);
+      if (v) addVersion(h, v, `php-cgi ?-i: ${line[1]}`);
+    }
+  }
+
+  // Easter eggs: só PHP < 5.5 com expose_php=On responde (logo = imagem, credits = página de texto).
   const eggPath = /\.php$/i.test(url.pathname) ? url.pathname : "/";
   const egg = await tryGet(`${eggPath}?=${LOGO_GUID}`, false);
   if (egg && egg.r.ok && /^image\//i.test(egg.r.headers.get("content-type") || "")) {
     addIndicator(h, "alert", msg("ind.easterEgg"), src(eggPath));
+  } else {
+    const credits = await tryGet(`${eggPath}?=${CREDITS_GUID}`, true);
+    if (credits && credits.r.ok && /PHP Credits|Zend Engine v[12]/i.test(credits.body || "")) {
+      addIndicator(h, "alert", msg("ind.easterEgg"), src(eggPath));
+    }
+  }
+
+  // Oráculo de lista de negação: um nome que WAFs costumam bloquear (403) vs. um nome aleatório (404).
+  // Um 403/404 claros revelam um WAF/deny-list à frente, o que também explica checagens profundas vazias.
+  const denyProbe = await tryGet("/composer.json", false);
+  const randProbe = await tryGet(`/zzz-${Math.random().toString(36).slice(2, 8)}.json`, false);
+  if (denyProbe && randProbe && denyProbe.r.status === 403 && randProbe.r.status === 404) {
+    addIndicator(h, "info", msg("ind.denyList"), src("/composer.json"));
   }
 
   probes.delete(tabId);
@@ -420,7 +465,7 @@ function updateBadge(tabId) {
   let color = "#5f6368";
   if (verdict && verdict.status !== STATUS.NOT_DETECTED) {
     const v = verdict.version;
-    text = v ? `${v.major}.${v.minor}` : "PHP";
+    text = verdict.badge ? verdict.badge : v ? `${v.major}.${v.minor}` : "PHP";
     color = STATUS_INFO[verdict.status].badge;
   }
   const ioc = top && hasIoc(top);

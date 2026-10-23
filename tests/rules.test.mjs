@@ -181,6 +181,43 @@ test("QA Shodan: painéis WampServer e Laragon expostos", () => {
   assert.equal(parseDevDashboard("Welcome", "PHP version: 8.3.30"), null);
 });
 
+import { fingerprintSession, isPhpSessionCacheLimiter } from "../lib/php-rules.js";
+
+test("fingerprint do PHPSESSID: teto de versão pelo formato do ID", () => {
+  // IDs reais de 26 chars no alfabeto 0-9a-v exigem session.hash_bits_per_character=5 (removido no 7.1).
+  assert.equal(fingerprintSession("og1ritgauld215rh2j3u61lhgu").range, "<=7.0");
+  assert.equal(fingerprintSession("h3rc1m1ipmqmcsvng86pharkq4").range, "<=7.0");
+  // 32 hex é o padrão nas duas eras -> sem sinal.
+  assert.equal(fingerprintSession("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"), null);
+  // Alfabeto de 6 bits (maiúsculas, vírgula, hífen) num comprimento não-legado -> >= 7.1.
+  assert.equal(fingerprintSession("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345,-abcdef").range, ">=7.1");
+  // Underscore não existe no alfabeto nativo do PHP.
+  assert.equal(fingerprintSession("wJ9x_Abc123XYZ_wJ9x_Abc123XYZ_01"), null);
+});
+
+test("fingerprint do PHPSESSID vira veredito EOL inferido", () => {
+  const { indicators } = analyzeHeaders([{ name: "Set-Cookie", value: "PHPSESSID=og1ritgauld215rh2j3u61lhgu; path=/; secure; HttpOnly" }]);
+  assert.ok(indicators.some((i) => i.kind === "session"));
+  const verdict = assess({ versions: [], indicators });
+  assert.equal(verdict.status, "eol");
+  assert.equal(verdict.badge, "≤7.0");
+  // Um ID >= 7.1 não baixa para EOL: segue como PHP sem versão.
+  const modern = analyzeHeaders([{ name: "Set-Cookie", value: "PHPSESSID=ABCDEFGHIJKLMNOPQRSTUVWXYZ012345,-abcdef; path=/" }]).indicators;
+  assert.equal(assess({ versions: [], indicators: modern }).status, "no_version");
+});
+
+test("cabeçalhos de cache-limiter de sessão do PHP", () => {
+  assert.equal(isPhpSessionCacheLimiter("Thu, 19 Nov 1981 08:52:00 GMT", "no-store, no-cache, must-revalidate", "no-cache"), true);
+  assert.equal(isPhpSessionCacheLimiter("Wed, 21 Oct 2026 00:00:00 GMT", "no-store, no-cache, must-revalidate", "no-cache"), false);
+  const { indicators } = analyzeHeaders([
+    { name: "Expires", value: "Thu, 19 Nov 1981 08:52:00 GMT" },
+    { name: "Cache-Control", value: "no-store, no-cache, must-revalidate, post-check=0, pre-check=0" },
+    { name: "Pragma", value: "no-cache" },
+  ]);
+  assert.ok(indicators.some((i) => i.kind === "header" && i.value.k === "ind.cacheLimiter"));
+  assert.equal(assess({ versions: [], indicators }).status, "no_version");
+});
+
 test("QA Shodan: WampServer antigo e XAMPP", () => {
   assert.deepEqual(parseDevDashboard("WAMPSERVER Homepage", "Apache Version : 2.2.11 PHP Version : 5.3.0 Loaded Extensions").versions, ["PHP 5.3.0"]);
   assert.deepEqual(parseDevDashboard("Welcome to XAMPP", "Apache + MariaDB + PHP + Perl Welcome to XAMPP for Windows 8.2.12 You have").versions, ["PHP 8.2.12"]);

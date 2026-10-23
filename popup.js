@@ -40,6 +40,8 @@ function lookups(host) {
   return [
     ["Shodan", `https://www.shodan.io/search?query=hostname%3A${q}`],
     ["Censys", `https://search.censys.io/search?resource=hosts&q=${q}`],
+    // Wayback: cabeçalhos antigos (X-Powered-By) de quando o expose_php ainda estava ligado.
+    ["Wayback", `https://web.archive.org/web/*/${host}/`],
     ["SOCRadar", "https://socradar.io/free-tools/php2shell-checker"],
     ["Brandefense", "https://atlas.brandefense.io/php-vulnerability-check"],
     ["securetheweb.org", "https://securetheweb.org/"],
